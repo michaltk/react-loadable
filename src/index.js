@@ -155,11 +155,6 @@ function createLoadableComponent(loadFn, options) {
     }
 
     _loadModule() {
-      if (this.context.loadable && Array.isArray(opts.modules)) {
-        opts.modules.forEach(moduleName => {
-          this.context.loadable.report(moduleName);
-        });
-      }
 
       if (!res.loading) {
         return;
@@ -220,16 +215,29 @@ function createLoadableComponent(loadFn, options) {
     }
 
     render() {
+      const scripts = this.context.loadable && Array.isArray(opts.modules) && this.context.loadale.report(opts.modules);
+
       if (this.state.loading || this.state.error) {
-        return React.createElement(opts.loading, {
-          isLoading: this.state.loading,
-          pastDelay: this.state.pastDelay,
-          timedOut: this.state.timedOut,
-          error: this.state.error,
-          retry: this.retry
-        });
+        return (
+          <React.Fragment>
+            {React.createElement(opts.loading, {
+              isLoading: this.state.loading,
+              pastDelay: this.state.pastDelay,
+              timedOut: this.state.timedOut,
+              error: this.state.error,
+              retry: this.retry,
+              props: this.props,
+            })}
+            {scripts}
+          </React.Fragment>
+        );
       } else if (this.state.loaded) {
-        return opts.render(this.state.loaded, this.props);
+        return (
+          <React.Fragment>
+            {opts.render(this.state.loaded, this.props)}
+            {scripts}
+          </React.Fragment>
+        )
       } else {
         return null;
       }
