@@ -1,30 +1,20 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 
-function buildManifest(compiler, compilation) {
-  let context = compiler.options.context;
+function buildManifest(compilation) {
   let manifest = {};
+  let publicPath = compilation.chunkTemplate.outputOptions.publicPath;
 
-  compilation.chunks.forEach(chunk => {
-    chunk.files.forEach(file => {
-      chunk.forEachModule(module => {
-        let id = module.id;
-        let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null;
-        let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file);
-        
-        let currentModule = module;
-        if (module.constructor.name === 'ConcatenatedModule') {
-          currentModule = module.rootModule;
-        }
-        if (!manifest[currentModule.rawRequest]) {
-          manifest[currentModule.rawRequest] = [];
-        }
-
-        manifest[currentModule.rawRequest].push({ id, name, file, publicPath });
+  [...compilation.chunkGroups].forEach(group => {
+    if (group.origins[0].request) {
+      manifest[group.origins[0].request] = [];
+      group.chunks.forEach(chunk => {
+        chunk.files.forEach((file, index) => {
+          manifest[group.origins[0].request].push({ id: chunk.ids[index], file: publicPath + file });
+        });
       });
-    });
+    }
   });
 
   return manifest;
@@ -36,8 +26,8 @@ class ReactLoadablePlugin {
   }
 
   apply(compiler) {
-    compiler.plugin('emit', (compilation, callback) => {
-      const manifest = buildManifest(compiler, compilation);
+    compiler.hooks.emit.tap('ReactLoadablePlugin', function (compilation) {
+      const manifest = buildManifest(compilation);
       var json = JSON.stringify(manifest, null, 2);
       const outputDirectory = path.dirname(this.filename);
       try {
@@ -48,7 +38,6 @@ class ReactLoadablePlugin {
         }
       }
       fs.writeFileSync(this.filename, json);
-      callback();
     });
   }
 }
